@@ -102,3 +102,8 @@ ENV/
 
 # Idea
 .idea/
+
+# DBs
+*.db
+*.sqlite
+*.sqlite3
