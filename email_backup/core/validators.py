@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 
@@ -37,7 +40,7 @@ def bind_port_validator(value):
 
 def host_validator(value):
     if not isinstance(value, six.string_types):
-        value = u"{}".format(value)
+        value = "{}".format(value)
     try:
         validate_ipv46_address(value)
     except ValidationError:
