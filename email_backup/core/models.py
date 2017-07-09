@@ -6,26 +6,17 @@ from email_backup.core.validators import (
     host_validator,
     bind_port_validator
 )
-from email_backup.core.connector import POP3, IMAP4
+from email_backup.core.connector import (
+    POP3,
+    IMAP4,
+    Email
+)
 
 from django.db import models
 from django.core.files import File
 
-from email.parser import Parser
-from email.utils import (
-    parsedate_tz,
-    parseaddr,
-    mktime_tz
-)
-import datetime
 import StringIO
-import binascii
-import logging
 import hashlib
-import base64
-import six
-
-logger = logging.getLogger(__name__)
 
 
 class EmailAccount(models.Model):
@@ -48,53 +39,28 @@ class EmailAccount(models.Model):
 
 
 class EmailManager(models.Manager):
-    def create_from(self, file_obj, **kwargs):
-        if isinstance(file_obj, six.string_types):
-            email = Parser().parsestr(file_obj)
-        else:
-            email = Parser().parse(file_obj)
+    def create_from(self, email, **kwargs):
+        assert isinstance(email, Email), 'Only support Email objects'
 
-        read_date = datetime.datetime.now()
-        date_str = email.get('date')
-        if date_str:
-            date_tuple = parsedate_tz(date_str)
-            if date_tuple:
-                date_stamp = mktime_tz(date_tuple)
-                if date_stamp:
-                    read_date = datetime.datetime.fromtimestamp(date_stamp)
-                else:
-                    datetime.datetime(*date_tuple[:7])
-        kwargs['send_by'] = parseaddr(email.get('from'))[1]
-        kwargs['date'] = read_date
+        kwargs['message_id'] = email.get('Message-Id')
+        kwargs['send_by'] = email.get('from')
+        kwargs['date'] = email.get('date')
         kwargs['subject'] = email.get('Subject', '')
-        if kwargs['subject']:
-            enc = email.get('Subject').split('?')
-            if enc[0] == enc[-1] == '=':
-                try:
-                    enc = enc[1:-1]
-                    enc_str = base64.decodestring(enc[-1])
-                    kwargs['subject'] = enc_str.decode(enc[0])
-                except (UnicodeDecodeError, UnicodeEncodeError):
-                    logger.exception('Cannot decode {}'.format(kwargs['subject']))
-                except binascii.Error:
-                    logger.exception('Cannot decode {}'.format(kwargs['subject']))
-        if not email.is_multipart():
-            enc = email.get('Content-Transfer-Encoding')
-            if 'base64' in enc:
-                kwargs['content'] = base64.decodestring(email.get_payload)
-        else:
-            # TODO Multipart
-            email.get_boundary()
-        # TODO use it ?? email.get('Message-Id')
-        email_hash = hashlib.sha512(email.as_string())
+        kwargs['subject'] = email.get('Subject')
+        kwargs['content'] = email.content
+        kwargs['attaches'] = email.attaches
+
+        email_hash = hashlib.sha512(unicode(email))
         filename = '{}.eml'.format(email_hash.hexdigest())
-        kwargs['raw'] = File(StringIO.StringIO(email.as_string()), name=filename)
-        self.create(**kwargs)
+        kwargs['raw'] = File(StringIO.StringIO(unicode(email)), name=filename)
+
+        return self.create(**kwargs)
 
 
 class Email(models.Model):
     account = models.ForeignKey(EmailAccount)
     raw = models.FileField(null=True)
+    message_id = models.CharField(max_length=1024, default='message_id@localhost')
     # For search proposed
     send_by = models.EmailField()
     subject = models.CharField(max_length=512, blank=True)
@@ -104,3 +70,6 @@ class Email(models.Model):
     folder = models.CharField(max_length=512, default='/')
 
     objects = EmailManager()
+
+    class Meta:
+        unique_together = ("account", "message_id")
