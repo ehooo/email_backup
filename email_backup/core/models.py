@@ -9,7 +9,7 @@ from email_backup.core.validators import (
 from email_backup.core.connector import (
     POP3,
     IMAP4,
-    Email
+    TmpEmail
 )
 
 from django.db import models
@@ -40,7 +40,7 @@ class EmailAccount(models.Model):
 
 class EmailManager(models.Manager):
     def create_from(self, email, **kwargs):
-        assert isinstance(email, Email), 'Only support Email objects'
+        assert isinstance(email, TmpEmail), 'Only support TmpEmail objects'
 
         kwargs['message_id'] = email.get('Message-Id')
         kwargs['send_by'] = email.get('from')
@@ -59,8 +59,8 @@ class EmailManager(models.Manager):
 
 class Email(models.Model):
     account = models.ForeignKey(EmailAccount)
-    raw = models.FileField(null=True)
-    message_id = models.CharField(max_length=1024, default='message_id@localhost')
+    raw = models.FileField()
+    message_id = models.CharField(max_length=1024)
     # For search proposed
     send_by = models.EmailField()
     subject = models.CharField(max_length=512, blank=True)

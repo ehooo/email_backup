@@ -7,6 +7,7 @@ from email.utils import (
     parseaddr,
     mktime_tz
 )
+from email.errors import MessageError
 
 import datetime
 import binascii
@@ -42,9 +43,9 @@ def get_email_content(email):
     return content
 
 
-class Email(object):
-    def __init__(self, id, file_obj, directory=None):
-        self.id = id
+class TmpEmail(object):
+    def __init__(self, server_id, file_obj, directory=None):
+        self.id = server_id
         if isinstance(file_obj, six.string_types):
             self.email = Parser().parsestr(file_obj)
         else:
@@ -71,7 +72,9 @@ class Email(object):
         return parseaddr(self.email.get('from'))[1] or default
 
     def attaches(self):
-        return len(self.email.get_payload())
+        if self.email.is_multipart():
+            return len(self.email.get_payload())
+        return 0
 
     def subject(self, default=None):
         subject = self.email.get('Subject', default)
@@ -167,26 +170,38 @@ class EmailConnectorInterface(object):
                 _, mgs, _ = self.connection.list()
                 for i in range(1, len(mgs)):
                     _, lines, _ = self.connection.retr(i)
-                    yield Email(i, '\r\n'.join(lines))
+                    try:
+                        yield TmpEmail(i, '\r\n'.join(lines))
+                    except MessageError:
+                        logger.exception('Error processing email {}'.format(i))
+
             elif self.protocol == IMAP4:
                 _, (mgs, ) = self.connection.select(directory)
+                ids = range(1, mgs)
                 if before and isinstance(before, (datetime.date, datetime.datetime)):
-                    loc_code, _ = locale.getlocale(locale.LC_TIME)
                     try:
-                        locale.setlocale(locale.LC_TIME, 'en_GB')
+                        code, enc = locale.getlocale(locale.LC_TIME)
+                        if code == enc:  # Only code == enc is both are None
+                            code, enc = locale.getdefaultlocale()
+                        loc_code = '{}.{}'.format(code, enc)
+                        locale.setlocale(locale.LC_TIME, 'en_GB.UTF-8')
+                        _, (mgs,) = self.connection.search(None, '(before "{}")'.format(before.strftime('%d-%b-%Y')))
+                        ids = mgs.split()
+                        locale.setlocale(locale.LC_TIME, loc_code)
                     except locale.Error:
                         pass
-                    self.connection.search(None, '(before "{}")'.format(before.strftime('%d-%b-%Y')))
-                    locale.setlocale(locale.LC_TIME, loc_code)
-                for i in range(1, mgs):
+                for i in ids:
                     _, ((_, msg), _) = self.connection.fetch(i, '(RFC822)')
-                    yield Email(i, msg, directory)
+                    try:
+                        yield TmpEmail(i, msg, directory)
+                    except MessageError:
+                        logger.exception('Error processing email {} on {}'.format(i, directory))
 
-    def delete(self, email):
+    def delete(self, tmp_email):
         if self.connection:
             if self.protocol == POP3:
-                self.connection.dele(email.id)
+                self.connection.dele(tmp_email.id)
             elif self.protocol == IMAP4:
-                self.connection.select(email.directory)
-                self.connection.store(email.id, '+FLAGS', '\\Deleted')
+                self.connection.select(tmp_email.directory)
+                self.connection.store(tmp_email.id, '+FLAGS', '\\Deleted')
                 self.connection.expunge()
