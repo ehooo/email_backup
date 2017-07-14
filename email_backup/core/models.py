@@ -2,45 +2,53 @@
 from __future__ import unicode_literals
 
 from email_backup.core.validators import (
-    ChoicesValidator,
     host_validator,
     bind_port_validator
 )
-from email_backup.core.connector import (
-    POP3,
-    IMAP4,
-    TmpEmail
-)
+from email_backup.core.connector import Email as TmpEmail
 
 from django.db import models
 from django.core.files import File
+from django.utils.translation import ugettext_lazy as _
 
 import StringIO
 import hashlib
 
 
 class EmailAccount(models.Model):
-    PROTOCOLS = (
-        (POP3, 'POP3'),
-        (IMAP4, 'IMAP4')
-    )
     user = models.CharField(max_length=128)
     password = models.CharField(max_length=128)
     host = models.CharField(max_length=64,
                             validators=[host_validator])
     path = models.CharField(max_length=512, default='/')
-    protocol = models.IntegerField(choices=PROTOCOLS, default=IMAP4,
-                                   validators=[ChoicesValidator(PROTOCOLS)])
     ssl = models.BooleanField(default=True)
-    port = models.IntegerField(default=993, validators=[bind_port_validator])
+    port = models.PositiveIntegerField(default=993, validators=[bind_port_validator])
 
     class Meta:
         unique_together = ("user", "host")
 
 
 class EmailManager(models.Manager):
+    def filter_from(self, email):
+        assert isinstance(email, TmpEmail), 'Only support {} objects'.format(TmpEmail.__class__)
+        email.load(True)
+        return self.get_queryset().filter(message_id=email.get('Message-Id'))
+
+    def get_or_create_from(self, email, **kwargs):
+        assert isinstance(email, TmpEmail), 'Only support {} objects'.format(TmpEmail.__class__)
+        account = kwargs.get('account', None)
+        assert account, 'Account is required'
+        email.load(True)
+        exist = self.get_queryset().filter(message_id=email.get('Message-Id'), account=account)
+        if exist.exists():
+            return exist.get()
+        return self.create_from(email)
+
     def create_from(self, email, **kwargs):
-        assert isinstance(email, TmpEmail), 'Only support TmpEmail objects'
+        assert isinstance(email, TmpEmail), 'Only support {} objects'.format(TmpEmail.__class__)
+        account = kwargs.get('account', None)
+        assert account, 'Account is required'
+        email.load()
 
         kwargs['message_id'] = email.get('Message-Id')
         kwargs['send_by'] = email.get('from')
@@ -73,3 +81,19 @@ class Email(models.Model):
 
     class Meta:
         unique_together = ("account", "message_id")
+
+
+class Sync(models.Model):
+    account = models.OneToOneField(EmailAccount)
+    weeks_before = models.PositiveSmallIntegerField(
+        default=0, blank=True,
+        help_text=_("Number of weeks until the system should process emails")
+    )
+    remove = models.BooleanField(
+        default=False,
+        help_text=_("Should the system remove emails when they are processed?")
+    )
+    just_read = models.BooleanField(
+        default=True,
+        help_text=_("Should de system ignore the unread emails?")
+    )

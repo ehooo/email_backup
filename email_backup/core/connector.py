@@ -7,23 +7,18 @@ from email.utils import (
     parseaddr,
     mktime_tz
 )
-from email.errors import MessageError
 
 import datetime
 import binascii
 import logging
 import imaplib
-import poplib
 import base64
 import locale
-import six
 import re
 
 logger = logging.getLogger(__name__)
 
 
-POP3 = 0
-IMAP4 = 1
 RE_IMAP4_DIR_NAME = re.compile('"([\w\s/\[\]]+)"$')
 
 
@@ -43,19 +38,35 @@ def get_email_content(email):
     return content
 
 
-class TmpEmail(object):
-    def __init__(self, server_id, file_obj, directory=None):
+class Email(object):
+    def __init__(self, connector, server_id, directory):
         self.id = server_id
-        if isinstance(file_obj, six.string_types):
-            self.email = Parser().parsestr(file_obj)
-        else:
-            self.email = Parser().parse(file_obj)
+        self.connector = connector
         self.directory = directory
+        self.email = None
+        self._header = False
+        self._full = False
+
+    def load(self, only_header=False):
+        self.connector.chdir(self.directory)
+        msg = None
+        if only_header:
+            if not self._header:
+                msg = self.connector.header(self.id)
+            self._header = True
+        else:
+            if not self._full:
+                msg = self.connector.read(self.id)
+            self._header = True
+            self._full = True
+        if msg:
+            self.email = Parser().parsestr(msg)
 
     def __unicode__(self):
-        return self.email.as_string()
+        return "[{}] {}".format(self.id, self.directory)
 
     def date(self, default=None):
+        self.load(True)
         read_date = default
         date_str = self.email.get('date', default)
         if date_str:
@@ -69,14 +80,17 @@ class TmpEmail(object):
         return read_date
 
     def send_by(self, default=None):
+        self.load(True)
         return parseaddr(self.email.get('from'))[1] or default
 
     def attaches(self):
+        self.load()
         if self.email.is_multipart():
             return len(self.email.get_payload())
         return 0
 
     def subject(self, default=None):
+        self.load(True)
         subject = self.email.get('Subject', default)
         if subject:
             enc = subject.split('?')
@@ -92,9 +106,11 @@ class TmpEmail(object):
         return subject
 
     def content(self):
+        self.load()
         return get_email_content(self.email)
 
     def get(self, key, default=None):
+        self.load(True)
         if key.lower() == 'date':
             return self.date(default)
         elif key.lower() in ['from', 'send_by']:
@@ -105,9 +121,7 @@ class TmpEmail(object):
 
 
 class EmailConnectorInterface(object):
-    def __init__(self, protocol, host, port, ssl, user, password):
-        assert protocol in [POP3, IMAP4], "Protocol not allowed"
-        self.protocol = protocol
+    def __init__(self, host, port, ssl, user, password):
         self.host = host
         self.port = port
         self.ssl = ssl
@@ -116,47 +130,27 @@ class EmailConnectorInterface(object):
         self.connection = None
 
     def open(self):
-        if self.protocol == POP3:
-            if self.ssl:
-                self.connection = poplib.POP3_SSL(self.host, self.port)
-            else:
-                self.connection = poplib.POP3(self.host, self.port)
-        elif self.protocol == IMAP4:
-            if self.ssl:
-                self.connection = imaplib.IMAP4_SSL(self.host, self.port)
-            else:
-                self.connection = imaplib.IMAP4(self.host, self.port)
+        if self.ssl:
+            self.connection = imaplib.IMAP4_SSL(self.host, self.port)
+        else:
+            self.connection = imaplib.IMAP4(self.host, self.port)
+        self.connection.login(self.user, self.password)
 
     def close(self):
         if self.connection:
-            if self.protocol == POP3:
-                self.connection.quit()
-            elif self.protocol == IMAP4:
-                try:
-                    self.connection.close()
-                    self.connection.logout()
-                except imaplib.IMAP4.error:
-                    pass  # Error because not login
-                finally:
-                    sock = self.connection.socket()
-                    sock.close()
+            try:
+                self.connection.close()
+                self.connection.logout()
+            except imaplib.IMAP4.error:
+                pass  # Error because not login?
+            finally:
+                sock = self.connection.socket()
+                sock.close()
         self.connection = None
-
-    def login(self):
-        if self.connection:
-            if self.protocol == POP3:
-                try:
-                    self.connection.apop(self.user, self.password)
-                except poplib.error_proto:
-                    self.connection.user(self.user)
-                    self.connection.pass_(self.password)
-
-            elif self.protocol == IMAP4:
-                self.connection.login(self.user, self.password)
 
     def directories(self):
         directories = []
-        if self.connection and self.protocol == IMAP4:
+        if self.connection:
             _, lines = self.connection.list()
             for line in lines:
                 find = RE_IMAP4_DIR_NAME.findall(line)
@@ -164,44 +158,49 @@ class EmailConnectorInterface(object):
                     directories.append(find[0])
         return directories
 
-    def emails(self, directory=None, before=None):
+    def get_emails_id(self, directory, before=None, just_read=False):
+        ids = []
         if self.connection:
-            if self.protocol == POP3:
-                _, mgs, _ = self.connection.list()
-                for i in range(1, len(mgs)):
-                    _, lines, _ = self.connection.retr(i)
-                    try:
-                        yield TmpEmail(i, '\r\n'.join(lines))
-                    except MessageError:
-                        logger.exception('Error processing email {}'.format(i))
+            num_emails = self.chdir(directory)
+            ids = range(1, num_emails)
+            queries = []
+            if before and isinstance(before, (datetime.date, datetime.datetime)):
+                try:
+                    code, enc = locale.getlocale(locale.LC_TIME)
+                    if code == enc:  # Only code == enc is both are None
+                        code, enc = locale.getdefaultlocale()
+                    loc_code = '{}.{}'.format(code, enc)
+                    locale.setlocale(locale.LC_TIME, 'en_GB.UTF-8')
+                    queries.append('(before "{}")'.format(before.strftime('%d-%b-%Y')))
+                    locale.setlocale(locale.LC_TIME, loc_code)
+                except locale.Error:
+                    pass
+            if just_read:
+                queries.append('(SEEN)')
+            if queries:
+                _, (ids_inline,) = self.connection.search(None, *queries)
+                ids = ids_inline.split()
+        for i in ids:
+            yield Email(self, i, directory)
 
-            elif self.protocol == IMAP4:
-                _, (mgs, ) = self.connection.select(directory)
-                ids = range(1, mgs)
-                if before and isinstance(before, (datetime.date, datetime.datetime)):
-                    try:
-                        code, enc = locale.getlocale(locale.LC_TIME)
-                        if code == enc:  # Only code == enc is both are None
-                            code, enc = locale.getdefaultlocale()
-                        loc_code = '{}.{}'.format(code, enc)
-                        locale.setlocale(locale.LC_TIME, 'en_GB.UTF-8')
-                        _, (mgs,) = self.connection.search(None, '(before "{}")'.format(before.strftime('%d-%b-%Y')))
-                        ids = mgs.split()
-                        locale.setlocale(locale.LC_TIME, loc_code)
-                    except locale.Error:
-                        pass
-                for i in ids:
-                    _, ((_, msg), _) = self.connection.fetch(i, '(RFC822)')
-                    try:
-                        yield TmpEmail(i, msg, directory)
-                    except MessageError:
-                        logger.exception('Error processing email {} on {}'.format(i, directory))
+    def read(self, email_id):
+        _, ((_, msg), _) = self.connection.fetch(email_id, '(RFC822)')
+        return msg
 
-    def delete(self, tmp_email):
+    def header(self, email_id):
+        _, ((_, msg), _) = self.connection.fetch(email_id, '(BODY.PEEK[HEADER])')
+        return msg
+
+    def chdir(self, directory):
+        num_emails = 0
         if self.connection:
-            if self.protocol == POP3:
-                self.connection.dele(tmp_email.id)
-            elif self.protocol == IMAP4:
-                self.connection.select(tmp_email.directory)
-                self.connection.store(tmp_email.id, '+FLAGS', '\\Deleted')
-                self.connection.expunge()
+            _, (num_emails, ) = self.connection.select(directory)
+        return num_emails
+
+    def mark_delete(self, email_id):
+        if self.connection:
+            self.connection.store(email_id, '+FLAGS', '\\Deleted')
+
+    def do_delete(self):
+        if self.connection:
+            self.connection.expunge()
