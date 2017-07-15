@@ -24,8 +24,39 @@ class EmailAccount(models.Model):
     ssl = models.BooleanField(default=True)
     port = models.PositiveIntegerField(default=993, validators=[bind_port_validator])
 
+    sync = models.BooleanField(default=False)
+    weeks_before = models.PositiveSmallIntegerField(
+        default=0, blank=True,
+        help_text=_("Number of weeks until the system should process emails")
+    )
+    remove = models.BooleanField(
+        default=False,
+        help_text=_("Should the system remove emails when they are processed?")
+    )
+    just_read = models.BooleanField(
+        default=True,
+        help_text=_("Should de system ignore the unread emails?")
+    )
+
     class Meta:
         unique_together = ("user", "host")
+
+    def __unicode__(self):
+        return "{} at [{}]".format(self.user, self.host)
+
+
+weeks_before = models.PositiveSmallIntegerField(
+    default=0, blank=True,
+    help_text=_("Number of weeks until the system should process emails")
+)
+remove = models.BooleanField(
+    default=False,
+    help_text=_("Should the system remove emails when they are processed?")
+)
+just_read = models.BooleanField(
+    default=True,
+    help_text=_("Should de system ignore the unread emails?")
+)
 
 
 class EmailManager(models.Manager):
@@ -81,19 +112,3 @@ class Email(models.Model):
 
     class Meta:
         unique_together = ("account", "message_id")
-
-
-class Sync(models.Model):
-    account = models.OneToOneField(EmailAccount)
-    weeks_before = models.PositiveSmallIntegerField(
-        default=0, blank=True,
-        help_text=_("Number of weeks until the system should process emails")
-    )
-    remove = models.BooleanField(
-        default=False,
-        help_text=_("Should the system remove emails when they are processed?")
-    )
-    just_read = models.BooleanField(
-        default=True,
-        help_text=_("Should de system ignore the unread emails?")
-    )

@@ -10,9 +10,9 @@ from django.utils.translation import ugettext_lazy as _
 
 
 class EmailAccountAdmin(admin.ModelAdmin):
-    list_display = ('user', 'host', 'protocol', 'ssl', 'port')
+    list_display = ('user', 'host', 'ssl', 'port', 'sync')
     search_fields = ('user', 'path', 'host')
-    list_filter = ('protocol', 'ssl')
+    list_filter = ('ssl', 'port', 'sync', 'remove', 'just_read')
 
     fieldsets = (
         (None, {
@@ -20,7 +20,11 @@ class EmailAccountAdmin(admin.ModelAdmin):
         }),
         (_('Advanced options'), {
             'classes': ('collapse',),
-            'fields': ('path', 'protocol', 'ssl', 'port'),
+            'fields': ('path', 'ssl', 'port'),
+        }),
+        (_('Sync options'), {
+            'classes': ('collapse',),
+            'fields': ('sync', 'weeks_before', 'remove', 'just_read'),
         }),
     )
 admin.site.register(EmailAccount, EmailAccountAdmin)
