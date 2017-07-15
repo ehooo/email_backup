@@ -40,12 +40,17 @@ def get_email_content(email):
 
 class Email(object):
     def __init__(self, connector, server_id, directory):
+        assert isinstance(connector, EmailConnectorInterface)
         self.id = server_id
         self.connector = connector
         self.directory = directory
         self.email = None
         self._header = False
         self._full = False
+
+    @property
+    def server_id(self):
+        return self.id
 
     def load(self, only_header=False):
         self.connector.chdir(self.directory)
@@ -158,7 +163,7 @@ class EmailConnectorInterface(object):
                     directories.append(find[0])
         return directories
 
-    def get_emails_id(self, directory, before=None, just_read=False):
+    def get_emails(self, directory, before=None, just_read=False):
         ids = []
         if self.connection:
             num_emails = self.chdir(directory)
