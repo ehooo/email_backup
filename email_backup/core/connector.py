@@ -2,10 +2,12 @@
 from __future__ import unicode_literals
 
 from email.parser import Parser
+from email.quoprimime import header_decode
 from email.utils import (
     parsedate_tz,
     parseaddr,
-    mktime_tz
+    mktime_tz,
+    ecre
 )
 
 import datetime
@@ -97,17 +99,19 @@ class Email(object):
     def subject(self, default=None):
         self.load(True)
         subject = self.email.get('Subject', default)
-        if subject:
-            enc = subject.split('?')
-            if enc[0] == enc[-1] == '=':
-                try:
-                    enc = enc[1:-1]
-                    enc_str = base64.decodestring(enc[-1])
-                    subject = enc_str.decode(enc[0])
-                except (UnicodeDecodeError, UnicodeEncodeError):
-                    logger.exception('Cannot decode {}'.format(subject))
-                except binascii.Error:
-                    logger.exception('Cannot decode {}'.format(subject))
+        match = ecre.match(subject)
+        if match:
+            try:
+                subject_data = match.groupdict()
+                if subject_data['encoding'] == 'q':
+                    subject = header_decode(subject_data['atom'])
+                elif subject_data['encoding'] == 'b':
+                    subject = base64.decodestring(subject_data['atom'])
+                subject = subject.decode(subject_data['charset'])
+            except (UnicodeDecodeError, UnicodeEncodeError):
+                logger.exception('Cannot decode {}'.format(subject))
+            except binascii.Error:
+                logger.exception('Cannot decode {}'.format(subject))
         return subject
 
     def content(self):
@@ -167,7 +171,7 @@ class EmailConnectorInterface(object):
         ids = []
         if self.connection:
             num_emails = self.chdir(directory)
-            ids = range(1, num_emails)
+            ids = range(1, int(num_emails))
             queries = []
             if before and isinstance(before, (datetime.date, datetime.datetime)):
                 try:
