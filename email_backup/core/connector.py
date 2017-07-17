@@ -16,12 +16,13 @@ import logging
 import imaplib
 import base64
 import locale
+import six
 import re
 
 logger = logging.getLogger(__name__)
 
 
-RE_IMAP4_DIR_NAME = re.compile('"([\w\s/\[\]]+)"$')
+RE_IMAP4_DIR_NAME = re.compile('^"([\w/\[\] .-]+)"$', re.UNICODE)
 
 
 def get_email_content(email):
@@ -171,16 +172,28 @@ class EmailConnectorInterface(object):
         ids = []
         if self.connection:
             num_emails = self.chdir(directory)
-            ids = range(1, int(num_emails))
+            ids = range(1, int(num_emails)+1)
             queries = []
-            if before and isinstance(before, (datetime.date, datetime.datetime)):
+            if before:
+                before_date = None
+                if isinstance(before, (datetime.date, datetime.datetime)):
+                    before_date = before
+                elif isinstance(before, six.string_types):
+                    try:
+                        before_date = datetime.datetime.strptime(before, '%d-%b-%Y')
+                    except ValueError:
+                        pass
+                else:
+                    raise ValueError('Invalid before')
                 try:
                     code, enc = locale.getlocale(locale.LC_TIME)
                     if code == enc:  # Only code == enc is both are None
                         code, enc = locale.getdefaultlocale()
                     loc_code = '{}.{}'.format(code, enc)
                     locale.setlocale(locale.LC_TIME, 'en_GB.UTF-8')
-                    queries.append('(before "{}")'.format(before.strftime('%d-%b-%Y')))
+                    if not before_date and isinstance(before, six.string_types):
+                        before_date = datetime.datetime.strptime(before, '%d-%b-%Y')
+                    queries.append('(before "{}")'.format(before_date.strftime('%d-%b-%Y')))
                     locale.setlocale(locale.LC_TIME, loc_code)
                 except locale.Error:
                     pass
@@ -193,11 +206,15 @@ class EmailConnectorInterface(object):
             yield Email(self, i, directory)
 
     def read(self, email_id):
-        _, ((_, msg), _) = self.connection.fetch(email_id, '(RFC822)')
+        msg = None
+        if self.connection:
+            _, ((_, msg), _) = self.connection.fetch(email_id, '(RFC822)')
         return msg
 
     def header(self, email_id):
-        _, ((_, msg), _) = self.connection.fetch(email_id, '(BODY.PEEK[HEADER])')
+        msg = None
+        if self.connection:
+            _, ((_, msg), _) = self.connection.fetch(email_id, '(BODY.PEEK[HEADER])')
         return msg
 
     def chdir(self, directory):
