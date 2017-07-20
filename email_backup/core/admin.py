@@ -10,7 +10,7 @@ from django.utils.translation import ugettext_lazy as _
 
 
 class EmailAccountAdmin(admin.ModelAdmin):
-    list_display = ('user', 'host', 'ssl', 'port', 'sync')
+    list_display = ('user', 'host', 'ssl', 'port', 'sync', 'path')
     search_fields = ('user', 'path', 'host')
     list_filter = ('ssl', 'port', 'sync', 'remove', 'just_read')
 

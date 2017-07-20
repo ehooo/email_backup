@@ -7,23 +7,29 @@ from django.utils.translation import ugettext_lazy as _
 from django.core.validators import BaseValidator, validate_ipv46_address
 import socket
 import six
+import re
 
 
-class ChoicesValidator(BaseValidator):
-    message = _('%(show_value)s is not on the list %(limit_value)s')
-    code = 'invalid_choices'
+class PathValidator(BaseValidator):
+    message = _('%(show_value)s is not valid path')
+    code = 'invalid_path'
+    RE_PATH = re.compile('([\w/ .-]+)')
 
-    def __init__(self, limit_value, message=None):
-        self.limit_value = dict(limit_value)
-        super(ChoicesValidator, self).__init__(limit_value, message=message)
+    def __init__(self, message=None):
+        BaseValidator.__init__(self, self.RE_PATH, message=message)
 
     def clean(self, x):
-        for key, val in self.limit_value:
-            if key == x or val == x:
-                return key
+        if isinstance(x, six.string_types):
+            valid_path = x.replace('//', '/')
+            str_len = len(x)
+            while str_len != len(valid_path):
+                valid_path = valid_path.replace('//', '/')
+                str_len = len(valid_path)
+            self.limit_value = valid_path
+        return x
 
     def compare(self, a, b):
-        return a in b
+        return a != b or not self.RE_PATH.match(a)
 
 
 def port_validator(value):
@@ -33,7 +39,8 @@ def port_validator(value):
 
 
 def bind_port_validator(value):
-    if not (0 < value < 49152):
+    port_validator(value)
+    if value > 49152:
         message = _('%(show_value)s is not valid bind port')
         raise ValidationError(message, code='invalid_port', params={'show_value': value})
 

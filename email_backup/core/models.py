@@ -3,7 +3,8 @@ from __future__ import unicode_literals
 
 from email_backup.core.validators import (
     host_validator,
-    bind_port_validator
+    bind_port_validator,
+    PathValidator
 )
 from email_backup.core.connector import Email as TmpEmail
 
@@ -20,7 +21,7 @@ class EmailAccount(models.Model):
     password = models.CharField(max_length=128)
     host = models.CharField(max_length=64,
                             validators=[host_validator])
-    path = models.CharField(max_length=512, default='/')
+    path = models.CharField(max_length=512, default='/', validators=[PathValidator()])
     ssl = models.BooleanField(default=True)
     port = models.PositiveIntegerField(default=993, validators=[bind_port_validator])
 
@@ -43,20 +44,6 @@ class EmailAccount(models.Model):
 
     def __unicode__(self):
         return "{} at [{}]".format(self.user, self.host)
-
-
-weeks_before = models.PositiveSmallIntegerField(
-    default=0, blank=True,
-    help_text=_("Number of weeks until the system should process emails")
-)
-remove = models.BooleanField(
-    default=False,
-    help_text=_("Should the system remove emails when they are processed?")
-)
-just_read = models.BooleanField(
-    default=True,
-    help_text=_("Should de system ignore the unread emails?")
-)
 
 
 class EmailManager(models.Manager):
@@ -90,7 +77,8 @@ class EmailManager(models.Manager):
         kwargs['attaches'] = email.attaches
 
         email_hash = hashlib.sha512(unicode(email))
-        filename = '{}.eml'.format(email_hash.hexdigest())
+        filename = '{}/{}.eml'.format(account.path, email_hash.hexdigest())
+        filename = filename.replace('//', '/')  # Only if path ends with /
         kwargs['raw'] = File(StringIO.StringIO(unicode(email)), name=filename)
 
         return self.create(**kwargs)

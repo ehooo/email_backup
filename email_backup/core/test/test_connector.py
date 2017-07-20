@@ -102,6 +102,9 @@ class DirectoriesTest(TestCase):
         self.assertEqual(self.conn.connection.list.call_count, 1)
         self.assertEqual(self.conn.connection.list.call_args, call())
 
+    def test_directories_not_exist(self):
+        pass  # TODO
+
 
 class FetchTest(TestCase):
     def setUp(self):
@@ -201,6 +204,9 @@ class DeleteTest(TestCase):
         self.conn.do_delete()
         self.assertEqual(self.conn.connection.expunge.call_count, 1)
         self.assertEqual(self.conn.connection.expunge.call_args, call())
+
+    def test_mark_delete_wrong(self):
+        pass  # TODO
 
 
 class GetEmailsTest(TestCase):
@@ -361,32 +367,5 @@ class GetEmailsTest(TestCase):
 
         self.assertRaises(StopIteration, generator.next)
 
-
-'''
-
-def get_emails(self, directory, before=None, just_read=False):
-    ids = []
-    if self.connection:
-        num_emails = self.chdir(directory)
-        ids = range(1, int(num_emails))
-        queries = []
-        if before and isinstance(before, (datetime.date, datetime.datetime)):
-            try:
-                code, enc = locale.getlocale(locale.LC_TIME)
-                if code == enc:  # Only code == enc is both are None
-                    code, enc = locale.getdefaultlocale()
-                loc_code = '{}.{}'.format(code, enc)
-                locale.setlocale(locale.LC_TIME, 'en_GB.UTF-8')
-                queries.append('(before "{}")'.format(before.strftime('%d-%b-%Y')))
-                locale.setlocale(locale.LC_TIME, loc_code)
-            except locale.Error:
-                pass
-        if just_read:
-            queries.append('(SEEN)')
-        if queries:
-            _, (ids_inline,) = self.connection.search(None, *queries)
-            ids = ids_inline.split()
-    for i in ids:
-        yield Email(self, i, directory)
-
-#'''
+    def test_get_emails_wrong_dir(self):
+        pass  # TODO
