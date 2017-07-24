@@ -4,9 +4,10 @@ from __future__ import unicode_literals
 from email_backup.core.validators import (
     host_validator,
     bind_port_validator,
-    PathValidator
+    path_validator
 )
 from email_backup.core.connector import Email as TmpEmail
+from email_backup.core.connector import EmailConnectorInterface
 
 from django.db import models
 from django.core.files import File
@@ -21,7 +22,7 @@ class EmailAccount(models.Model):
     password = models.CharField(max_length=128)
     host = models.CharField(max_length=64,
                             validators=[host_validator])
-    path = models.CharField(max_length=512, default='/', validators=[PathValidator()])
+    path = models.CharField(max_length=512, default='/', validators=[path_validator])
     ssl = models.BooleanField(default=True)
     port = models.PositiveIntegerField(default=993, validators=[bind_port_validator])
 
@@ -44,6 +45,9 @@ class EmailAccount(models.Model):
 
     def __unicode__(self):
         return "{} at [{}]".format(self.user, self.host)
+
+    def connector(self):
+        return EmailConnectorInterface(self.host, self.port, self.ssl, self.user, self.password)
 
 
 class EmailManager(models.Manager):

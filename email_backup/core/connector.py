@@ -22,7 +22,7 @@ import re
 logger = logging.getLogger(__name__)
 
 
-RE_IMAP4_DIR_NAME = re.compile('^"([\w/\[\] .-]+)"$', re.UNICODE)
+RE_IMAP4_DIR_NAME = re.compile('"([\w/\[\] .-]+)"$', re.UNICODE)
 
 
 def get_email_content(email):
@@ -207,24 +207,34 @@ class EmailConnectorInterface(object):
 
     def read(self, email_id):
         msg = None
-        if self.connection:
-            _, ((_, msg), _) = self.connection.fetch(email_id, '(RFC822)')
+        if self.connection and email_id > 0:
+            try:
+                _, ((_, msg), _) = self.connection.fetch(email_id, '(RFC822)')
+            except ValueError:
+                pass
         return msg
 
     def header(self, email_id):
         msg = None
-        if self.connection:
-            _, ((_, msg), _) = self.connection.fetch(email_id, '(BODY.PEEK[HEADER])')
+        if self.connection and email_id > 0:
+            try:
+                _, ((_, msg), _) = self.connection.fetch(email_id, '(BODY.PEEK[HEADER])')
+            except ValueError:
+                pass
         return msg
 
     def chdir(self, directory):
         num_emails = 0
-        if self.connection:
-            _, (num_emails, ) = self.connection.select(directory)
+        if self.connection and directory:
+            ok, (num_emails, ) = self.connection.select(directory)
+            if ok == 'OK':
+                num_emails = int(num_emails)
+            else:
+                num_emails = 0
         return num_emails
 
     def mark_delete(self, email_id):
-        if self.connection:
+        if self.connection and email_id > 0:
             self.connection.store(email_id, '+FLAGS', '\\Deleted')
 
     def do_delete(self):

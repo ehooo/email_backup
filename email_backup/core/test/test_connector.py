@@ -111,18 +111,18 @@ class FetchTest(TestCase):
         host, port, ssl, user, password = 'imap.host.test', 143, False, 'user', 'password'
         self.conn = EmailConnectorInterface(host, port, ssl, user, password)
         self.conn.connection = Mock()
+        self.conn.connection.fetch = Mock()
 
     def test_read_not_open(self):
         self.conn.connection = None
-        email_id = 0
+        email_id = 1
         result = self.conn.read(email_id)
         self.assertEqual(result, None)
 
     def test_read(self):
         msg = 'Message'
         data = (('', msg), '')
-        email_id = 0
-        self.conn.connection.fetch = Mock()
+        email_id = 1
         self.conn.connection.fetch.return_value = ('OK', data)
         result = self.conn.read(email_id)
         self.assertEqual(result, msg)
@@ -131,26 +131,40 @@ class FetchTest(TestCase):
 
     def test_header_not_open(self):
         self.conn.connection = None
-        email_id = 0
+        email_id = 1
         result = self.conn.header(email_id)
         self.assertEqual(result, None)
 
     def test_header(self):
         msg = 'Message'
         data = (('', msg), '')
-        email_id = 0
-        self.conn.connection.fetch = Mock()
+        email_id = 1
         self.conn.connection.fetch.return_value = ('OK', data)
         result = self.conn.header(email_id)
         self.assertEqual(result, msg)
         self.assertEqual(self.conn.connection.fetch.call_count, 1)
         self.assertEqual(self.conn.connection.fetch.call_args, call(email_id, '(BODY.PEEK[HEADER])'))
 
-    def test_wrong_read(self):
-        pass  # TODO
+    def test_wrong_zero(self):
+        email_id = 0
+        result = self.conn.header(email_id)
+        self.assertIsNone(result)
+        self.assertEqual(self.conn.connection.fetch.call_count, 0)
 
-    def test_wrong_header(self):
-        pass  # TODO
+    def test_wrong_index_out(self):
+        data = [None]
+        email_id = 99999
+        self.conn.connection.fetch.return_value = ('OK', data)
+
+        result = self.conn.header(email_id)
+        self.assertIsNone(result)
+        self.assertEqual(self.conn.connection.fetch.call_count, 1)
+        self.assertEqual(self.conn.connection.fetch.call_args, call(email_id, '(BODY.PEEK[HEADER])'))
+
+        result = self.conn.read(email_id)
+        self.assertIsNone(result)
+        self.assertEqual(self.conn.connection.fetch.call_count, 2)
+        self.assertIn(call(email_id, '(RFC822)'), self.conn.connection.fetch.call_args_list)
 
 
 class ChDirTest(TestCase):
@@ -158,6 +172,7 @@ class ChDirTest(TestCase):
         host, port, ssl, user, password = 'imap.host.test', 143, False, 'user', 'password'
         self.conn = EmailConnectorInterface(host, port, ssl, user, password)
         self.conn.connection = Mock()
+        self.conn.connection.select = Mock()
 
     def test_chdir_not_open(self):
         self.conn.connection = None
@@ -166,16 +181,20 @@ class ChDirTest(TestCase):
 
     def test_chdir(self):
         directory = 'dir'
-        ret_val = 5
-        self.conn.connection.select = Mock()
-        self.conn.connection.select.return_value = ('OK', (ret_val, ))
+        ret_val = '5'
+        self.conn.connection.select.return_value = ('OK', [ret_val])
         result = self.conn.chdir(directory)
-        self.assertEqual(result, ret_val)
+        self.assertEqual(result, 5)
         self.assertEqual(self.conn.connection.select.call_count, 1)
         self.assertEqual(self.conn.connection.select.call_args, call(directory))
 
     def test_wrong_chdir(self):
-        pass  # TODO
+        directory = 'not exist'
+        ret_val = ['[NONEXISTENT] Unknown Mailbox:  (Failure)']
+        self.conn.connection.select.return_value = ('NO', ret_val)
+        result = self.conn.chdir(directory)
+        self.assertEqual(result, 0)
+        self.assertEqual(self.conn.connection.select.call_count, 1)
 
 
 class DeleteTest(TestCase):
@@ -183,10 +202,11 @@ class DeleteTest(TestCase):
         host, port, ssl, user, password = 'imap.host.test', 143, False, 'user', 'password'
         self.conn = EmailConnectorInterface(host, port, ssl, user, password)
         self.conn.connection = Mock()
+        self.conn.connection.store = Mock()
 
     def test_mark_delete_not_open(self):
         self.conn.connection = None
-        self.conn.mark_delete(0)
+        self.conn.mark_delete(1)
 
     def test_do_delete_not_open(self):
         self.conn.connection = None
@@ -194,19 +214,19 @@ class DeleteTest(TestCase):
 
     def test_mark_delete(self):
         email_id = 5
-        self.conn.connection.store = Mock()
         self.conn.mark_delete(email_id)
         self.assertEqual(self.conn.connection.store.call_count, 1)
         self.assertEqual(self.conn.connection.store.call_args, call(email_id, '+FLAGS', '\\Deleted'))
 
     def test_do_delete(self):
-        self.conn.connection.store = Mock()
         self.conn.do_delete()
         self.assertEqual(self.conn.connection.expunge.call_count, 1)
         self.assertEqual(self.conn.connection.expunge.call_args, call())
 
     def test_mark_delete_wrong(self):
-        pass  # TODO
+        email_id = 0
+        self.conn.mark_delete(email_id)
+        self.assertEqual(self.conn.connection.store.call_count, 0)
 
 
 class GetEmailsTest(TestCase):
@@ -368,4 +388,12 @@ class GetEmailsTest(TestCase):
         self.assertRaises(StopIteration, generator.next)
 
     def test_get_emails_wrong_dir(self):
-        pass  # TODO
+        directory = 'not exist'
+        self.conn.chdir = Mock()
+        self.conn.chdir.return_value = 0
+
+        generator = self.conn.get_emails(directory)
+        self.assertRaises(StopIteration, generator.next)
+
+        self.assertEqual(self.conn.chdir.call_count, 1)
+        self.assertEqual(self.conn.chdir.call_args, call(directory))
