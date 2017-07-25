@@ -1,5 +1,7 @@
-from email_backup.core.connector import EmailConnectorInterface
-from email_backup.core.models import EmailAccount, Email
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
+from email_backup.core.models import EmailAccount, Email, EmailPath
 import datetime
 
 
@@ -7,9 +9,12 @@ def sync_account(account):
     assert isinstance(account, EmailAccount)
     if not account.sync:
         return
-    email_server = EmailConnectorInterface(account.host, account.port, account.ssl,
-                                           account.user, account.password)
+    email_server = account.connector()
     for directory in email_server.directories():
+        path, created = EmailPath.objects.get_or_create(account=account, path=directory)
+        if path.ignore or created:
+            continue
+
         before = datetime.date.today() - datetime.timedelta(weeks=account.weeks_before)
         emails = email_server.get_emails(directory=directory, before=before,
                                          just_read=account.just_read)

@@ -50,6 +50,18 @@ class EmailAccount(models.Model):
         return EmailConnectorInterface(self.host, self.port, self.ssl, self.user, self.password)
 
 
+class EmailPath(models.Model):
+    account = models.ForeignKey(EmailAccount, related_name='ignore')
+    path = models.CharField(max_length=512, default='/', validators=[path_validator])
+    ignore = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ("account", "path")
+
+    def __unicode__(self):
+        return "Exclude {} on {}".format(self.path, self.account)
+
+
 class EmailManager(models.Manager):
     def filter_from(self, email):
         assert isinstance(email, TmpEmail), 'Only support {} objects'.format(TmpEmail.__class__)
@@ -63,8 +75,8 @@ class EmailManager(models.Manager):
         email.load(True)
         exist = self.get_queryset().filter(message_id=email.get('Message-Id'), account=account)
         if exist.exists():
-            return exist.get()
-        return self.create_from(email)
+            return exist.get(), False
+        return self.create_from(email), True
 
     def create_from(self, email, **kwargs):
         assert isinstance(email, TmpEmail), 'Only support {} objects'.format(TmpEmail.__class__)

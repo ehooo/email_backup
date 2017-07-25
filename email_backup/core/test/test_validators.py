@@ -96,8 +96,6 @@ class PathValidatorTest(TestCase):
         self.assertRaises(ValidationError, path_validator, '\n')
         self.assertRaises(ValidationError, path_validator, '(')
         self.assertRaises(ValidationError, path_validator, ')')
-        self.assertRaises(ValidationError, path_validator, '[')
-        self.assertRaises(ValidationError, path_validator, ']')
         self.assertRaises(ValidationError, path_validator, '{')
         self.assertRaises(ValidationError, path_validator, '}')
         self.assertRaises(ValidationError, path_validator, '!')

@@ -10,7 +10,7 @@ import six
 import re
 
 
-RE_PATH = re.compile('([\w/ .-]+)')
+RE_PATH = re.compile('([\w/\[\] .-]+)$', re.UNICODE)
 
 
 def path_validator(value):
