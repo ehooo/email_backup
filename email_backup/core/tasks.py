@@ -19,8 +19,9 @@ def sync_account(account):
         emails = email_server.get_emails(directory=directory, before=before,
                                          just_read=account.just_read)
         for email in emails:
-            Email.objects.get_or_create_from(email, account=account)
+            email, created = Email.objects.get_or_create_from(email, account=account)
+            email.paths.add(path)
             if account.remove:
                 email_server.mark_delete(email.server_id)  # email.delete()
-        if account.remove:
-            email_server.do_delete()
+    if account.remove:
+        email_server.do_delete()

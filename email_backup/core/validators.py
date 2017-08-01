@@ -17,6 +17,9 @@ def path_validator(value):
     if not isinstance(value, six.string_types):
         message = _('%(show_value)s is not valid path')
         raise ValidationError(message, code='invalid_path', params={'show_value': value})
+    if value.endswith('/'):
+        message = _('%(show_value)s is not valid path')
+        raise ValidationError(message, code='invalid_path', params={'show_value': value})
     valid_path = value.replace('//', '/')
     str_len = len(value)
     if str_len != len(valid_path):

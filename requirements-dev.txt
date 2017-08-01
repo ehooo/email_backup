@@ -1,0 +1,4 @@
+-r requirements.txt
+mock==2.0.0
+coverage==4.4.1
+django-extensions==1.8.1

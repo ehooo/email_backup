@@ -64,21 +64,25 @@ class HostValidatorTest(TestCase):
     @patch('email_backup.core.validators.socket.gethostbyname')
     def test_invalid_host(self, gethostbyname_mock):
         gethostbyname_mock.side_effect = socket.error
-        host = 'domain.host'
+        host = object
         self.assertRaises(ValidationError, host_validator, host)
         self.assertEqual(gethostbyname_mock.call_count, 1)
-        self.assertEqual(gethostbyname_mock.call_args, call(host))
+        self.assertEqual(gethostbyname_mock.call_args, call("{}".format(host)))
 
 
 class PathValidatorTest(TestCase):
+    def test_object(self):
+        self.assertRaises(ValidationError, path_validator, object)
+
     def test_root(self):
-        self.assertIsNone(path_validator('/'))
+        self.assertRaises(ValidationError, path_validator, '/')
 
     def test_relative_path(self):
-        self.assertIsNone(path_validator('./'))
+        self.assertRaises(ValidationError, path_validator, './')
+        self.assertIsNone(path_validator('.'))
 
     def test_multi_path(self):
-        self.assertRaises(ValidationError, path_validator, '//')
+        self.assertRaises(ValidationError, path_validator, '/multi//path')
 
     def test_blank(self):
         self.assertRaises(ValidationError, path_validator, '')
