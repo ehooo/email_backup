@@ -25,7 +25,7 @@ sync_accounts.short_description = _("Mark for sync")
 
 
 def remove_sync_accounts(modeladmin, request, queryset):
-    queryset.update(sync=True)
+    queryset.update(sync=False)
 remove_sync_accounts.short_description = _("Remove sync mark")
 
 
