@@ -48,6 +48,9 @@ class EmailAccount(models.Model):
     def __unicode__(self):
         return "{} at [{}]".format(self.user, self.host)
 
+    def __str__(self):
+        return "{} at [{}]".format(self.user, self.host)
+
     def connector(self):
         return EmailConnectorInterface(self.host, self.port, self.ssl, self.user, self.password)
 
@@ -61,6 +64,9 @@ class EmailPath(models.Model):
         unique_together = ("account", "path")
 
     def __unicode__(self):
+        return self.path
+
+    def __str__(self):
         return self.path
 
 
@@ -90,11 +96,10 @@ class EmailManager(models.Manager):
         kwargs['send_by'] = email.get('from')
         kwargs['date'] = email.get('date')
         kwargs['subject'] = email.get('Subject', '')
-        kwargs['subject'] = email.get('Subject')
-        kwargs['content'] = email.content
-        kwargs['attaches'] = email.attaches
+        kwargs['content'] = email.content()
+        kwargs['attaches'] = email.attaches()
 
-        email_hash = hashlib.sha512(unicode(email))
+        email_hash = hashlib.sha512(email.raw or '')
 
         base_path = '.'
         try:

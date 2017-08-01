@@ -55,6 +55,7 @@ class Email(object):
         self.email = None
         self._header = False
         self._full = False
+        self.raw = None
 
     @property
     def server_id(self):
@@ -70,6 +71,7 @@ class Email(object):
         else:
             if not self._full:
                 msg = self.connector.read(self.id)
+                self.raw = msg
             self._header = True
             self._full = True
         if msg:
