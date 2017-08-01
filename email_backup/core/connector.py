@@ -28,17 +28,22 @@ RE_IMAP4_DIR_NAME = re.compile('"([\w/\[\] .-]+)"$', re.UNICODE)
 def get_email_content(email):
     content = None
     if email.is_multipart():
-        for e in email:
+        for e in email.get_payload():
             content = get_email_content(e)
             if content:
                 break
     elif email.get_content_maintype() == 'text':
-        enc = email.get('Content-Transfer-Encoding')
+        enc = email.get('Content-Transfer-Encoding', '')
         if 'base64' in enc:
             content = base64.decodestring(email.get_payload())
         else:
             content = email.get_payload()
-    return content
+    enc = email.get('Content-Type', '')
+    if enc:
+        find = re.findall('charset="([\w-]+)"', enc)
+        if find:
+            content = content.decode(find[0])
+    return unicode(content)
 
 
 class Email(object):
@@ -73,18 +78,19 @@ class Email(object):
     def __unicode__(self):
         return "[{}] {}".format(self.id, self.directory)
 
+    def __str__(self):
+        return "[{}] {}".format(self.id, self.directory)
+
     def date(self, default=None):
         self.load(True)
+        if not self.email:
+            return default
         read_date = default
-        date_str = self.email.get('date', default)
+        date_str = self.email.get('date', None)
         if date_str:
             date_tuple = parsedate_tz(date_str)
             if date_tuple:
-                date_stamp = mktime_tz(date_tuple)
-                if date_stamp:
-                    read_date = datetime.datetime.fromtimestamp(date_stamp)
-                else:
-                    read_date = datetime.datetime(*date_tuple[:7])
+                read_date = datetime.datetime.fromtimestamp(mktime_tz(date_tuple))
         return read_date
 
     def send_by(self, default=None):
@@ -104,11 +110,11 @@ class Email(object):
         if match:
             try:
                 subject_data = match.groupdict()
-                if subject_data['encoding'] == 'q':
-                    subject = header_decode(subject_data['atom'])
-                elif subject_data['encoding'] == 'b':
-                    subject = base64.decodestring(subject_data['atom'])
-                subject = subject.decode(subject_data['charset'])
+                if subject_data['encoding'] in ['q', 'Q']:
+                    enc_subject = header_decode(subject_data['atom'])
+                elif subject_data['encoding'] in ['b', 'B']:
+                    enc_subject = base64.decodestring(subject_data['atom'])
+                subject = enc_subject.decode(subject_data['charset'])
             except (UnicodeDecodeError, UnicodeEncodeError):
                 logger.exception('Cannot decode {}'.format(subject))
             except binascii.Error:

@@ -3,9 +3,261 @@ from __future__ import unicode_literals
 
 from unittest import TestCase
 from mock import Mock, patch, call
-from email_backup.core.connector import EmailConnectorInterface
-from datetime import date
+from email_backup.core.connector import (
+    get_email_content,
+    Email,
+    EmailConnectorInterface
+)
+from email.parser import Parser
+from datetime import date, datetime
+import binascii
+import imaplib
 import locale
+import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+class GetEmailContentTest(TestCase):
+    def test_multi(self):
+        multi_email_file = os.path.join(BASE_DIR, 'files', 'multi_email.eml')
+        multi_email = Parser().parse(open(multi_email_file))
+        email_content = '*Test Body*\r\n\r\n-- \r\nSignature with link <http://domain.test>\r\n'
+        read_content = get_email_content(multi_email)
+        self.assertEqual(email_content, read_content)
+
+    def test_plain(self):
+        plain_email_file = os.path.join(BASE_DIR, 'files', 'plain_email.eml')
+        plain_email = Parser().parse(open(plain_email_file))
+        email_content = 'Plain body\r\n'
+        read_content = get_email_content(plain_email)
+        self.assertEqual(email_content, read_content)
+
+    def test_japan(self):
+        japan_email_file = os.path.join(BASE_DIR, 'files', 'japan_email.eml')
+        japan_email = Parser().parse(open(japan_email_file))
+        email_content = u'テスト body\r\n'
+        read_content = get_email_content(japan_email)
+        self.assertEqual(email_content, read_content)
+
+
+class EmailTest(TestCase):
+    def setUp(self):
+        self.multi_email_file = os.path.join(BASE_DIR, 'files', 'multi_email.eml')
+        self.plain_email_file = os.path.join(BASE_DIR, 'files', 'plain_email.eml')
+        self.japan_email_file = os.path.join(BASE_DIR, 'files', 'japan_email.eml')
+
+        self.connector = Mock(spec=EmailConnectorInterface)
+        self.connector.header.return_value = ''
+        self.connector.read.return_value = ''
+
+        self.email = Email(self.connector, 1, 'test')
+
+    def test_string(self):
+        self.assertEqual(str(self.email), '[1] test')
+        self.assertEqual(unicode(self.email), u'[1] test')
+
+    def test_sever_id(self):
+        self.assertEqual(self.email.server_id, 1)
+
+    def _test_load(self):
+        self.assertFalse(self.email._header)
+        self.assertFalse(self.email._full)
+        self.email.load()
+        self.assertEqual(self.connector.chdir.call_count, 1)
+        self.assertEqual(self.connector.chdir.call_args, call(self.email.directory))
+        self.assertEqual(self.connector.read.call_count, 1)
+        self.assertEqual(self.connector.read.call_args, call(self.email.id))
+        self.assertTrue(self.email._header)
+        self.assertTrue(self.email._full)
+
+    def test_load_plain(self):
+        self.connector.read.return_value = open(self.plain_email_file).read()
+        self._test_load()
+
+    def test_load_multi(self):
+        self.connector.read.return_value = open(self.multi_email_file).read()
+        self._test_load()
+
+    def test_load_japan(self):
+        self.connector.read.return_value = open(self.japan_email_file).read()
+        self._test_load()
+
+    def _test_load_headers(self):
+        self.assertFalse(self.email._header)
+        self.assertFalse(self.email._full)
+        self.email.load(True)
+        self.assertEqual(self.connector.chdir.call_count, 1)
+        self.assertEqual(self.connector.chdir.call_args, call(self.email.directory))
+        self.assertEqual(self.connector.header.call_count, 1)
+        self.assertEqual(self.connector.header.call_args, call(self.email.id))
+        self.assertTrue(self.email._header)
+        self.assertFalse(self.email._full)
+
+    def test_load_header_plain(self):
+        self.connector.header.return_value = open(self.plain_email_file).read()
+        self._test_load_headers()
+
+    def test_load_header_multi(self):
+        self.connector.header.return_value = open(self.multi_email_file).read()
+        self._test_load_headers()
+
+    def test_load_header_japan(self):
+        self.connector.header.return_value = open(self.japan_email_file).read()
+        self._test_load_headers()
+
+    def test_load_no_msg(self):
+        self._test_load()
+
+    def _test_get_common(self):
+        self.assertEqual(self.connector.chdir.call_count, 2)
+        self.assertEqual(self.connector.chdir.call_args, call(self.email.directory))
+        self.assertEqual(self.connector.header.call_count, 1)
+        self.assertEqual(self.connector.header.call_args, call(self.email.id))
+
+    def test_get_date_no_msg(self):
+        value = self.email.get('date')
+        self._test_get_common()
+        self.assertIsNone(value)
+
+    def test_get_date_plain(self):
+        self.connector.header.return_value = open(self.plain_email_file).read()
+        value = self.email.get('date')
+        self._test_get_common()
+        self.assertEqual(value, datetime(2017, 7, 31, 20, 25, 18))
+
+    def test_get_date_multi(self):
+        self.connector.header.return_value = open(self.multi_email_file).read()
+        value = self.email.get('date')
+        self._test_get_common()
+        self.assertEqual(value, datetime(2017, 7, 31, 14, 18, 46))
+
+    def test_get_date_japan(self):
+        self.connector.header.return_value = open(self.japan_email_file).read()
+        value = self.email.get('date')
+        self._test_get_common()
+        self.assertEqual(value, datetime(2017, 7, 31, 11, 30, 37))
+
+    def test_get_from_plain(self):
+        self.connector.header.return_value = open(self.plain_email_file).read()
+        value = self.email.get('from')
+        self._test_get_common()
+        self.assertEqual(value, 'from@email.test')
+
+    def test_get_from_multi(self):
+        self.connector.header.return_value = open(self.multi_email_file).read()
+        value = self.email.get('from')
+        self._test_get_common()
+        self.assertEqual(value, 'from@email.test')
+
+    def test_get_from_japan(self):
+        self.connector.header.return_value = open(self.japan_email_file).read()
+        value = self.email.get('from')
+        self._test_get_common()
+        self.assertEqual(value, 'from@email.test')
+
+    def test_get_subject_plain(self):
+        self.connector.header.return_value = open(self.plain_email_file).read()
+        value = self.email.get('subject')
+        self._test_get_common()
+        self.assertEqual(value, 'Test plain')
+
+    def test_get_subject_multi(self):
+        self.connector.header.return_value = open(self.multi_email_file).read()
+        value = self.email.get('subject')
+        self._test_get_common()
+        self.assertEqual(value, 'Test subject')
+
+    def test_get_subject_japan(self):
+        self.connector.header.return_value = open(self.japan_email_file).read()
+        value = self.email.get('subject')
+        self._test_get_common()
+        self.assertEqual(value, u'テスト')
+
+    def test_subject_encode_error(self):
+        self.email.email = Mock()
+        self.email.email.get.return_value = '=?UTF-8?B?test?='
+        subject = self.email.subject()
+        self.assertEqual(self.email.email.get.return_value, subject)
+
+    @patch('email_backup.core.connector.base64.decodestring')
+    def test_subject_binascii_error(self, raise_call_mock):
+        self.email.email = Mock()
+        self.email.email.get.return_value = '=?UTF-8?B?test?='
+        raise_call_mock.side_effect = binascii.Error
+        subject = self.email.subject()
+        self.assertEqual(raise_call_mock.call_count, 1)
+        self.assertEqual(raise_call_mock.call_args, call('test'))
+        self.assertEqual(self.email.email.get.return_value, subject)
+
+    def test_get_generic_plain(self):
+        self.connector.header.return_value = open(self.plain_email_file).read()
+        value = self.email.get('Message-id')
+        self.assertEqual(self.connector.chdir.call_count, 1)
+        self.assertEqual(self.connector.chdir.call_args, call(self.email.directory))
+        self.assertEqual(self.connector.header.call_count, 1)
+        self.assertEqual(self.connector.header.call_args, call(self.email.id))
+        self.assertEqual(value, '<plain_id@email.test>')
+
+    def test_get_generic_multi(self):
+        self.connector.header.return_value = open(self.multi_email_file).read()
+        value = self.email.get('message-ID')
+        self.assertEqual(self.connector.chdir.call_count, 1)
+        self.assertEqual(self.connector.chdir.call_args, call(self.email.directory))
+        self.assertEqual(self.connector.header.call_count, 1)
+        self.assertEqual(self.connector.header.call_args, call(self.email.id))
+        self.assertEqual(value, '<ID_multi@email.test>')
+
+    def test_get_generic_japan(self):
+        self.connector.header.return_value = open(self.japan_email_file).read()
+        value = self.email.get('Message-ID')
+        self.assertEqual(self.connector.chdir.call_count, 1)
+        self.assertEqual(self.connector.chdir.call_args, call(self.email.directory))
+        self.assertEqual(self.connector.header.call_count, 1)
+        self.assertEqual(self.connector.header.call_args, call(self.email.id))
+        self.assertEqual(value, u'<ID_japan@email.test>')
+
+    def _test_content_common(self):
+        self.assertEqual(self.connector.chdir.call_count, 1)
+        self.assertEqual(self.connector.chdir.call_args, call(self.email.directory))
+        self.assertEqual(self.connector.read.call_count, 1)
+        self.assertEqual(self.connector.read.call_args, call(self.email.id))
+
+    def test_content_plain(self):
+        self.connector.read.return_value = open(self.plain_email_file).read()
+        value = self.email.content()
+        self._test_content_common()
+        email_content = 'Plain body\r\n'
+        self.assertEqual(email_content, value)
+
+    def test_content_multi(self):
+        self.connector.read.return_value = open(self.multi_email_file).read()
+        value = self.email.content()
+        self._test_content_common()
+        email_content = '*Test Body*\r\n\r\n-- \r\nSignature with link <http://domain.test>\r\n'
+        self.assertEqual(email_content, value)
+
+    def test_content_japan(self):
+        self.connector.read.return_value = open(self.japan_email_file).read()
+        value = self.email.content()
+        self._test_content_common()
+        email_content = u'テスト body\r\n'
+        self.assertEqual(email_content, value)
+
+    def test_attaches_plain(self):
+        self.connector.read.return_value = open(self.plain_email_file).read()
+        value = self.email.attaches()
+        self.assertEqual(value, 0)
+
+    def test_attaches_multi(self):
+        self.connector.read.return_value = open(self.multi_email_file).read()
+        value = self.email.attaches()
+        self.assertEqual(value, 2)
+
+    def test_attaches_japan(self):
+        self.connector.read.return_value = open(self.japan_email_file).read()
+        value = self.email.attaches()
+        self.assertEqual(value, 0)
 
 
 class OpenTest(TestCase):
@@ -65,6 +317,11 @@ class CloseTest(TestCase):
         self.assertIsNone(self.conn.connection)
 
     def test_close_not_open(self):
+        self.conn.close()
+
+    def test_close_wrong(self):
+        self.conn.connection = Mock()
+        self.conn.connection.close.side_effect = imaplib.IMAP4.error
         self.conn.close()
 
 
@@ -321,7 +578,7 @@ class GetEmailsTest(TestCase):
         self.assertEqual(self.conn.connection.search.call_count, 1)
         self.assertEqual(self.conn.connection.search.call_args, call(None, '(before "{}")'.format(before_str)))
 
-    def test_get_emails_with_wrong_before(self):
+    def test_get_emails_with_wrong_before_as_string(self):
         directory = 'directory'
         before_str = 'THIS_IS_NOT_DATE'
         self.conn.chdir = Mock()
@@ -329,6 +586,33 @@ class GetEmailsTest(TestCase):
 
         generator = self.conn.get_emails(directory, before=before_str)
         self.assertRaises(ValueError, generator.next)
+
+    def test_get_emails_with_wrong_before(self):
+        directory = 'directory'
+        before_str = object
+        self.conn.chdir = Mock()
+        self.conn.chdir.return_value = 0
+
+        generator = self.conn.get_emails(directory, before=before_str)
+        self.assertRaises(ValueError, generator.next)
+
+    @patch('email_backup.core.connector.locale.setlocale')
+    def test_get_emails_with_wrong_locale(self, setlocale_mock):
+        setlocale_mock.side_effect = locale.Error
+        directory = 'directory'
+        ret_val = ''
+        before_str = '01-Jan-2017'
+        self.conn.chdir = Mock()
+        self.conn.chdir.return_value = 0
+        self.conn.connection.search = Mock()
+        self.conn.connection.search.return_value = ('OK', (ret_val, ))
+
+        generator = self.conn.get_emails(directory, before=before_str)
+        self.assertRaises(StopIteration, generator.next)
+
+        self.assertEqual(self.conn.chdir.call_count, 1)
+        self.assertEqual(self.conn.chdir.call_args, call(directory))
+        self.assertEqual(self.conn.connection.search.call_count, 0)
 
     def test_get_emails_with_before_and_just_read(self):
         directory = 'directory'
