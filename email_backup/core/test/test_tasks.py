@@ -8,23 +8,28 @@ from email_backup.core.tasks import *
 
 class SyncAccountTest(TestCase):
     def test_sync_account_no_account(self):
-        self.assertRaises(AssertionError, sync_account, Mock())
+        self.assertRaises(EmailAccount.DoesNotExist, sync_account, 1)
 
-    def test_sync_account_no_sync(self):
+    @patch('email_backup.core.tasks.EmailAccount.objects.get')
+    def test_sync_account_no_sync(self, get_account_objects_mock):
         account = Mock(spec=EmailAccount)
         account.sync = False
-        sync_account(account)
+        get_account_objects_mock.return_value = account
+        sync_account(1)
         self.assertEqual(account.connector.call_count, 0)
 
-    def test_sync_account_remove_simple(self):
+    @patch('email_backup.core.tasks.EmailAccount.objects.get')
+    def test_sync_account_remove_simple(self, get_account_objects_mock):
         account = Mock(spec=EmailAccount)
         account.sync = True
         account.remove = True
-
         email_server_mock = Mock()
         email_server_mock.directories.return_value = []
         account.connector.return_value = email_server_mock
-        sync_account(account)
+
+        get_account_objects_mock.return_value = account
+        sync_account(1)
+
         self.assertEqual(account.connector.call_count, 1)
         self.assertEqual(account.connector.call_args, call())
         self.assertEqual(email_server_mock.directories.call_count, 1)
@@ -33,7 +38,8 @@ class SyncAccountTest(TestCase):
         self.assertEqual(email_server_mock.do_delete.call_args, call())
 
     @patch('email_backup.core.tasks.EmailPath.objects')
-    def test_sync_account_ignore(self, objects_mock):
+    @patch('email_backup.core.tasks.EmailAccount.objects.get')
+    def test_sync_account_ignore(self, get_account_objects_mock, objects_mock):
         account = Mock(spec=EmailAccount)
         account.sync = True
         account.remove = False
@@ -46,7 +52,9 @@ class SyncAccountTest(TestCase):
         path_mock.ignore = True
         objects_mock.get_or_create.return_value = path_mock, False
 
-        sync_account(account)
+
+        get_account_objects_mock.return_value = account
+        sync_account(1)
 
         self.assertEqual(account.connector.call_count, 1)
         self.assertEqual(account.connector.call_args, call())
@@ -59,7 +67,8 @@ class SyncAccountTest(TestCase):
         self.assertEqual(email_server_mock.get_emails.call_count, 0)
 
     @patch('email_backup.core.tasks.EmailPath.objects')
-    def test_sync_account_new_path(self, objects_mock):
+    @patch('email_backup.core.tasks.EmailAccount.objects.get')
+    def test_sync_account_new_path(self, get_account_objects_mock, objects_mock):
         account = Mock(spec=EmailAccount)
         account.sync = True
         account.remove = False
@@ -72,7 +81,8 @@ class SyncAccountTest(TestCase):
         path_mock.ignore = False
         objects_mock.get_or_create.return_value = path_mock, True
 
-        sync_account(account)
+        get_account_objects_mock.return_value = account
+        sync_account(1)
 
         self.assertEqual(account.connector.call_count, 1)
         self.assertEqual(account.connector.call_args, call())
@@ -86,7 +96,8 @@ class SyncAccountTest(TestCase):
 
     @patch('email_backup.core.tasks.Email.objects')
     @patch('email_backup.core.tasks.EmailPath.objects')
-    def test_sync_account_remove(self, objects_mock, email_objects_mock):
+    @patch('email_backup.core.tasks.EmailAccount.objects.get')
+    def test_sync_account_remove(self, get_account_objects_mock, objects_mock, email_objects_mock):
         account = Mock(spec=EmailAccount)
         account.sync = True
         account.remove = True
@@ -105,7 +116,8 @@ class SyncAccountTest(TestCase):
         email_raw = Mock()
         email_server_mock.get_emails.return_value = [email_raw]
 
-        sync_account(account)
+        get_account_objects_mock.return_value = account
+        sync_account(1)
 
         self.assertEqual(account.connector.call_count, 1)
         self.assertEqual(account.connector.call_args, call())
@@ -129,7 +141,8 @@ class SyncAccountTest(TestCase):
 
     @patch('email_backup.core.tasks.Email.objects')
     @patch('email_backup.core.tasks.EmailPath.objects')
-    def test_sync_account_no_remove(self, objects_mock, email_objects_mock):
+    @patch('email_backup.core.tasks.EmailAccount.objects.get')
+    def test_sync_account_no_remove(self, get_account_objects_mock, objects_mock, email_objects_mock):
         account = Mock(spec=EmailAccount)
         account.sync = True
         account.remove = False
@@ -148,7 +161,8 @@ class SyncAccountTest(TestCase):
         email_raw = Mock()
         email_server_mock.get_emails.return_value = [email_raw]
 
-        sync_account(account)
+        get_account_objects_mock.return_value = account
+        sync_account(1)
 
         self.assertEqual(account.connector.call_count, 1)
         self.assertEqual(account.connector.call_args, call())

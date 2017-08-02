@@ -1,5 +1,5 @@
 [run]
-omit=manage.py,email_backup/wsgi.py,email_backup/settings/*,*/migrations/*,email_backup/core/apps.py
+omit=manage.py,email_backup/wsgi.py,email_backup/celery.py,email_backup/settings/*,*/migrations/*,email_backup/core/apps.py
 
 [report]
 #skip_covered=True

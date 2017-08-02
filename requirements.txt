@@ -1,2 +1,4 @@
 Django==1.11.3
 six==1.10
+celery==4.1.0
+django-celery-beat==1.0.1

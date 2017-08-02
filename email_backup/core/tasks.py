@@ -1,12 +1,21 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
+
+from email_backup.celery import app
 
 from email_backup.core.models import EmailAccount, Email, EmailPath
 import datetime
 
 
-def sync_account(account):
-    assert isinstance(account, EmailAccount)
+@app.task
+def sync_all_account():
+    for account in EmailAccount.objects.filter(sync=True):
+        sync_account.apply_async(account.pk)
+
+
+@app.task
+def sync_account(account_pk):
+    account = EmailAccount.objects.get(pk=account_pk)
     if not account.sync:
         return
     email_server = account.connector()
