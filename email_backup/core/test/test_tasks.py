@@ -6,6 +6,27 @@ from mock import Mock, patch, call
 from email_backup.core.tasks import *
 
 
+class SyncAllAccountTest(TestCase):
+    @patch('email_backup.core.tasks.EmailAccount.objects.filter')
+    def test_sync_all_account_empty(self, filter_mock):
+        filter_mock.return_value = []
+        sync_all_account()
+        self.assertEqual(filter_mock.call_count, 1)
+        self.assertEqual(filter_mock.call_args, call(sync=True))
+
+    @patch('email_backup.core.tasks.sync_account')
+    @patch('email_backup.core.tasks.EmailAccount.objects.filter')
+    def test_sync_all_account(self, filter_mock, sync_account_mock):
+        account = Mock()
+        account.pk = 1
+        filter_mock.return_value = [account]
+        sync_all_account()
+        self.assertEqual(filter_mock.call_count, 1)
+        self.assertEqual(filter_mock.call_args, call(sync=True))
+        self.assertEqual(sync_account_mock.apply_async.call_count, 1)
+        self.assertEqual(sync_account_mock.apply_async.call_args, call(account.pk))
+
+
 class SyncAccountTest(TestCase):
     def test_sync_account_no_account(self):
         self.assertRaises(EmailAccount.DoesNotExist, sync_account, 1)
