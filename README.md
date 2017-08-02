@@ -1,8 +1,7 @@
-=====================================================================
- Email Backup System
-=====================================================================
-
-|build-status| |coverage| |license| |pyversion|
+Email Backup System
+===================
+[![Build Status](https://travis-ci.org/ehooo/email_backup.svg?branch=master)](https://travis-ci.org/ehooo/email_backup)
+[![Coverage](https://codecov.io/gh/ehooo/django_mqtt/branch/master/graphs/badge.svg?branch=master)](https://codecov.io/gh/ehooo/django_mqtt/)
 
 About
 =====
