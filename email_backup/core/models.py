@@ -102,7 +102,7 @@ class EmailManager(models.Manager):
         kwargs['content'] = email.content()
         kwargs['attaches'] = email.attaches()
 
-        email_hash = hashlib.sha512(email.raw or '')
+        email_hash = hashlib.sha512(six.b(email.raw) or b'')
 
         base_path = '.'
         try:

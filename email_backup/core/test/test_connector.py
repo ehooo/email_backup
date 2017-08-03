@@ -191,7 +191,7 @@ class EmailTest(TestCase):
         raise_call_mock.side_effect = binascii.Error
         subject = self.email.subject()
         self.assertEqual(raise_call_mock.call_count, 1)
-        self.assertEqual(raise_call_mock.call_args, call('test'))
+        self.assertEqual(raise_call_mock.call_args, call(six.b('test')))
         self.assertEqual(self.email.email.get.return_value, subject)
 
     def test_get_generic_plain(self):
