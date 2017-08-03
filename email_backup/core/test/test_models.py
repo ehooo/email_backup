@@ -48,7 +48,7 @@ class EmailManagerTest(TestCase):
     def test_create_from_without_account(self):
         self.assertRaises(AssertionError, Email.objects.create_from, self.email)
 
-    @patch('email_backup.core.models.StringIO.StringIO')
+    @patch('email_backup.core.models.StringIO')
     @patch('email_backup.core.models.File')
     @patch('email_backup.core.models.default_storage')
     @patch('email_backup.core.models.EmailManager.create')
@@ -87,7 +87,7 @@ class EmailManagerTest(TestCase):
         self.assertEqual(create_mock.call_count, 1)
         self.assertEqual(create_mock.call_args, call(account=account, **kwargs))
 
-    @patch('email_backup.core.models.StringIO.StringIO')
+    @patch('email_backup.core.models.StringIO')
     @patch('email_backup.core.models.File')
     @patch('email_backup.core.models.default_storage')
     @patch('email_backup.core.models.EmailManager.create')
