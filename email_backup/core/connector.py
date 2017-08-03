@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 RE_IMAP4_DIR_NAME = re.compile('"([\w/\[\] .-]+)"$', re.UNICODE)
 
-if not six.PY2:
+if not six.PY2:  # pragma: no cover
     unicode = str
 
 

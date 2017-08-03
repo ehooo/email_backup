@@ -19,7 +19,7 @@ import hashlib
 import six
 import os
 
-if not six.PY2:
+if not six.PY2:  # pragma: no cover
     unicode = str
 
 class EmailAccount(models.Model):

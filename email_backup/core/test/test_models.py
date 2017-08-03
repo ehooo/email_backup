@@ -9,7 +9,7 @@ import six
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-if not six.PY2:
+if not six.PY2:  # pragma: no cover
     unicode = str
 
 

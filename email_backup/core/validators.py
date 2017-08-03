@@ -35,10 +35,10 @@ def port_validator(value):
         if not (0 < value < 65535) or not isinstance(value, int):
             message = _('%(show_value)s is not valid port')
             raise ValidationError(message, code='invalid_port', params={'show_value': value})
-    except TypeError:
+    except TypeError:  # pragma: no cover
+        # Python3
         message = _('%(show_value)s is not valid port')
         raise ValidationError(message, code='invalid_port', params={'show_value': value})
-
 
 
 def bind_port_validator(value):

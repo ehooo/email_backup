@@ -18,7 +18,7 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-if not six.PY2:
+if not six.PY2:  # pragma: no cover
     unicode = str
 
 
@@ -490,7 +490,7 @@ class DeleteTest(TestCase):
         self.assertEqual(self.conn.connection.store.call_count, 0)
 
 
-class GetEmailsTest(TestCase):
+class GetEmailsTest(TestCase):  # pragma: no cover
     def setUp(self):
         host, port, ssl, user, password = 'imap.host.test', 143, False, 'user', 'password'
         self.conn = EmailConnectorInterface(host, port, ssl, user, password)
