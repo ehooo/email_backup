@@ -1,0 +1,13 @@
+Delivered-To: to@email.test
+Return-Path: <from@email.test>
+MIME-Version: 1.0
+Received: by 1.2.3.4 with HTTP; Mon, 31 Jul 2017 11:30:37 -0700 (PDT)
+From: Sender <from@email.test>
+Date: Mon, 31 Jul 2017 20:30:37 +0900
+Message-ID: <ID_japan@email.test>
+Subject: =?UTF-8?B?44OG44K544OI?=
+To: "To" <to@email.test>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: base64
+
+44OG44K544OIIGJvZHkNCg==
