@@ -31,9 +31,14 @@ def path_validator(value):
 
 
 def port_validator(value):
-    if not (0 < value < 65535) or not isinstance(value, int):
+    try:
+        if not (0 < value < 65535) or not isinstance(value, int):
+            message = _('%(show_value)s is not valid port')
+            raise ValidationError(message, code='invalid_port', params={'show_value': value})
+    except TypeError:
         message = _('%(show_value)s is not valid port')
         raise ValidationError(message, code='invalid_port', params={'show_value': value})
+
 
 
 def bind_port_validator(value):

@@ -38,14 +38,14 @@ def get_email_content(email):
     elif email.get_content_maintype() == 'text':
         enc = email.get('Content-Transfer-Encoding', '')
         if 'base64' in enc:
-            content = base64.decodestring(email.get_payload())
+            content = base64.decodestring(six.b(email.get_payload()))
         else:
             content = email.get_payload()
     enc = email.get('Content-Type', '')
     if enc:
         find = re.findall('charset="([\w-]+)"', enc)
         if find:
-            content = content.decode(find[0])
+            content = six.b(content).decode(find[0])
     return unicode(content)
 
 
@@ -115,11 +115,12 @@ class Email(object):
         if match:
             try:
                 subject_data = match.groupdict()
+                enc_subject = u''
                 if subject_data['encoding'] in ['q', 'Q']:
                     enc_subject = header_decode(subject_data['atom'])
                 elif subject_data['encoding'] in ['b', 'B']:
-                    enc_subject = base64.decodestring(subject_data['atom'])
-                subject = enc_subject.decode(subject_data['charset'])
+                    enc_subject = base64.decodestring(six.b(subject_data['atom']))
+                subject = six.b(enc_subject).decode(subject_data['charset'])
             except (UnicodeDecodeError, UnicodeEncodeError):
                 logger.exception('Cannot decode {}'.format(subject))
             except binascii.Error:
