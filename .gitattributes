@@ -1,2 +1,1 @@
-* text eol=CRLF
-*.eml eol=CRLF
+*.eml text eol=CRLF
