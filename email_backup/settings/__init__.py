@@ -1,2 +1,2 @@
 from __future__ import absolute_import
-from .devel import *
+from .prod import *
