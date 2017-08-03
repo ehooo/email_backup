@@ -14,6 +14,7 @@ import datetime
 import binascii
 import logging
 import imaplib
+import codecs
 import base64
 import locale
 import six
@@ -40,13 +41,13 @@ def get_email_content(email):
         if 'base64' in enc:
             content = base64.decodestring(six.b(email.get_payload()))
         else:
-            content = email.get_payload()
+            content = six.b(email.get_payload())
     enc = email.get('Content-Type', '')
     if enc:
         find = re.findall('charset="([\w-]+)"', enc)
         if find:
-            content = content.decode(find[0])
-    return unicode(content)
+            content = codecs.decode(content, find[0], 'strict')
+    return content
 
 
 class Email(object):
@@ -115,12 +116,12 @@ class Email(object):
         if match:
             try:
                 subject_data = match.groupdict()
-                enc_subject = u''
+                enc_subject = b''
                 if subject_data['encoding'] in ['q', 'Q']:
-                    enc_subject = header_decode(subject_data['atom'])
+                    enc_subject = six.b(header_decode(subject_data['atom']))
                 elif subject_data['encoding'] in ['b', 'B']:
                     enc_subject = base64.decodestring(six.b(subject_data['atom']))
-                subject = enc_subject.decode(subject_data['charset'])
+                subject = codecs.decode(enc_subject, subject_data['charset'], 'strict')
             except (UnicodeDecodeError, UnicodeEncodeError):
                 logger.exception('Cannot decode {}'.format(subject))
             except binascii.Error:
