@@ -14,7 +14,7 @@ from django.core.files import File
 from django.utils.translation import ugettext_lazy as _
 from django.core.files.storage import default_storage
 
-import StringIO
+from six import StringIO
 import hashlib
 import os
 
