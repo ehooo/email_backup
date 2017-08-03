@@ -1,1 +1,1 @@
-*.eml text eol=CRLF
+email_backup/core/test/files/*eml text eol=CRLF
