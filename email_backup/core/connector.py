@@ -24,6 +24,9 @@ logger = logging.getLogger(__name__)
 
 RE_IMAP4_DIR_NAME = re.compile('"([\w/\[\] .-]+)"$', re.UNICODE)
 
+if not six.PY2:
+    unicode = str
+
 
 def get_email_content(email):
     content = None

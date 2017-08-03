@@ -5,8 +5,12 @@ from unittest import TestCase
 from mock import Mock, patch, call
 from email_backup.core.models import *
 from datetime import datetime
+import six
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+if not six.PY2:
+    unicode = str
 
 
 class EmailAccountTest(TestCase):

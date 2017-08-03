@@ -13,9 +13,13 @@ from datetime import date, datetime
 import binascii
 import imaplib
 import locale
+import six
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+if not six.PY2:
+    unicode = str
 
 
 class GetEmailContentTest(TestCase):

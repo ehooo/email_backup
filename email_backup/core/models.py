@@ -16,8 +16,11 @@ from django.core.files.storage import default_storage
 
 from six import StringIO
 import hashlib
+import six
 import os
 
+if not six.PY2:
+    unicode = str
 
 class EmailAccount(models.Model):
     user = models.CharField(max_length=128)
