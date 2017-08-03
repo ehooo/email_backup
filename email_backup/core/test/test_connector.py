@@ -499,7 +499,10 @@ class GetEmailsTest(TestCase):
     def test_get_emails_not_open(self):
         self.conn.connection = None
         generator = self.conn.get_emails(None)
-        self.assertRaises(StopIteration, generator.next)
+        if not six.PY2:
+            self.assertRaises(StopIteration, next, generator)
+        else:
+            self.assertRaises(StopIteration, generator.next)
 
     def test_get_emails_without_extra(self):
         directory = 'directory'
@@ -507,7 +510,10 @@ class GetEmailsTest(TestCase):
         self.conn.chdir.return_value = 0
 
         generator = self.conn.get_emails(directory)
-        self.assertRaises(StopIteration, generator.next)
+        if not six.PY2:
+            self.assertRaises(StopIteration, next, generator)
+        else:
+            self.assertRaises(StopIteration, generator.next)
 
         self.assertEqual(self.conn.chdir.call_count, 1)
         self.assertEqual(self.conn.chdir.call_args, call(directory))
@@ -521,7 +527,10 @@ class GetEmailsTest(TestCase):
         self.conn.connection.search.return_value = ('OK', (ret_val, ))
 
         generator = self.conn.get_emails(directory, just_read=True)
-        self.assertRaises(StopIteration, generator.next)
+        if not six.PY2:
+            self.assertRaises(StopIteration, next, generator)
+        else:
+            self.assertRaises(StopIteration, generator.next)
 
         self.assertEqual(self.conn.chdir.call_count, 1)
         self.assertEqual(self.conn.chdir.call_args, call(directory))
@@ -539,7 +548,10 @@ class GetEmailsTest(TestCase):
         self.conn.connection.search.return_value = ('OK', (ret_val, ))
 
         generator = self.conn.get_emails(directory, before=before)
-        self.assertRaises(StopIteration, generator.next)
+        if not six.PY2:
+            self.assertRaises(StopIteration, next, generator)
+        else:
+            self.assertRaises(StopIteration, generator.next)
 
         self.assertEqual(self.conn.chdir.call_count, 1)
         self.assertEqual(self.conn.chdir.call_args, call(directory))
@@ -558,7 +570,10 @@ class GetEmailsTest(TestCase):
         self.conn.connection.search.return_value = ('OK', (ret_val, ))
 
         generator = self.conn.get_emails(directory, before=before_str_es)
-        self.assertRaises(StopIteration, generator.next)
+        if not six.PY2:
+            self.assertRaises(StopIteration, next, generator)
+        else:
+            self.assertRaises(StopIteration, generator.next)
 
         self.assertEqual(self.conn.chdir.call_count, 1)
         self.assertEqual(self.conn.chdir.call_args, call(directory))
@@ -575,7 +590,10 @@ class GetEmailsTest(TestCase):
         self.conn.connection.search.return_value = ('OK', (ret_val, ))
 
         generator = self.conn.get_emails(directory, before=before_str)
-        self.assertRaises(StopIteration, generator.next)
+        if not six.PY2:
+            self.assertRaises(StopIteration, next, generator)
+        else:
+            self.assertRaises(StopIteration, generator.next)
 
         self.assertEqual(self.conn.chdir.call_count, 1)
         self.assertEqual(self.conn.chdir.call_args, call(directory))
@@ -589,7 +607,10 @@ class GetEmailsTest(TestCase):
         self.conn.chdir.return_value = 0
 
         generator = self.conn.get_emails(directory, before=before_str)
-        self.assertRaises(ValueError, generator.next)
+        if not six.PY2:
+            self.assertRaises(ValueError, next, generator)
+        else:
+            self.assertRaises(ValueError, generator.next)
 
     def test_get_emails_with_wrong_before(self):
         directory = 'directory'
@@ -598,7 +619,10 @@ class GetEmailsTest(TestCase):
         self.conn.chdir.return_value = 0
 
         generator = self.conn.get_emails(directory, before=before_str)
-        self.assertRaises(ValueError, generator.next)
+        if not six.PY2:
+            self.assertRaises(ValueError, next, generator)
+        else:
+            self.assertRaises(ValueError, generator.next)
 
     @patch('email_backup.core.connector.locale.setlocale')
     def test_get_emails_with_wrong_locale(self, setlocale_mock):
@@ -612,7 +636,10 @@ class GetEmailsTest(TestCase):
         self.conn.connection.search.return_value = ('OK', (ret_val, ))
 
         generator = self.conn.get_emails(directory, before=before_str)
-        self.assertRaises(StopIteration, generator.next)
+        if not six.PY2:
+            self.assertRaises(StopIteration, next, generator)
+        else:
+            self.assertRaises(StopIteration, generator.next)
 
         self.assertEqual(self.conn.chdir.call_count, 1)
         self.assertEqual(self.conn.chdir.call_args, call(directory))
@@ -628,7 +655,10 @@ class GetEmailsTest(TestCase):
         self.conn.connection.search.return_value = ('OK', (ret_val, ))
 
         generator = self.conn.get_emails(directory, before=before_str, just_read=True)
-        self.assertRaises(StopIteration, generator.next)
+        if not six.PY2:
+            self.assertRaises(StopIteration, next, generator)
+        else:
+            self.assertRaises(StopIteration, generator.next)
 
         self.assertEqual(self.conn.chdir.call_count, 1)
         self.assertEqual(self.conn.chdir.call_args, call(directory))
@@ -642,12 +672,18 @@ class GetEmailsTest(TestCase):
         self.conn.chdir.return_value = 1
 
         generator = self.conn.get_emails(directory)
-        email = generator.next()
+        if not six.PY2:
+            email = next(generator)
+        else:
+            email = generator.next()
 
         self.assertEqual(email.id, 1)
         self.assertEqual(email.connector, self.conn)
         self.assertEqual(email.directory, directory)
-        self.assertRaises(StopIteration, generator.next)
+        if not six.PY2:
+            self.assertRaises(StopIteration, next, generator)
+        else:
+            self.assertRaises(StopIteration, generator.next)
 
     def test_get_emails_with_response_and_query(self):
         directory = 'directory'
@@ -659,11 +695,17 @@ class GetEmailsTest(TestCase):
 
         generator = self.conn.get_emails(directory, just_read=True)
 
-        email = generator.next()
+        if not six.PY2:
+            email = next(generator)
+        else:
+            email = generator.next()
         self.assertEqual(email.id, '1')
         self.assertEqual(email.connector, self.conn)
         self.assertEqual(email.directory, directory)
-        email = generator.next()
+        if not six.PY2:
+            email = next(generator)
+        else:
+            email = generator.next()
         self.assertEqual(email.id, '10')
         self.assertEqual(email.connector, self.conn)
         self.assertEqual(email.directory, directory)
@@ -673,7 +715,10 @@ class GetEmailsTest(TestCase):
         self.assertEqual(self.conn.connection.search.call_count, 1)
         self.assertEqual(self.conn.connection.search.call_args, call(None, '(SEEN)'))
 
-        self.assertRaises(StopIteration, generator.next)
+        if not six.PY2:
+            self.assertRaises(StopIteration, next, generator)
+        else:
+            self.assertRaises(StopIteration, generator.next)
 
     def test_get_emails_wrong_dir(self):
         directory = 'not exist'
@@ -681,7 +726,10 @@ class GetEmailsTest(TestCase):
         self.conn.chdir.return_value = 0
 
         generator = self.conn.get_emails(directory)
-        self.assertRaises(StopIteration, generator.next)
+        if not six.PY2:
+            self.assertRaises(StopIteration, next, generator)
+        else:
+            self.assertRaises(StopIteration, generator.next)
 
         self.assertEqual(self.conn.chdir.call_count, 1)
         self.assertEqual(self.conn.chdir.call_args, call(directory))
