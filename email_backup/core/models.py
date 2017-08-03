@@ -108,7 +108,7 @@ class EmailManager(models.Manager):
             pass
         filename = '{}/{}/{}.eml'.format(base_path, account.path, email_hash.hexdigest())
         filename = os.path.abspath(filename)
-        kwargs['raw'] = File(StringIO.StringIO(unicode(email)), name=filename)
+        kwargs['raw'] = File(StringIO(unicode(email)), name=filename)
 
         return self.create(**kwargs)
 
