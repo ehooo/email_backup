@@ -1,6 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import base64
+import binascii
+import codecs
+import datetime
+import imaplib
+import locale
+import logging
+import re
 from email.parser import Parser
 from email.quoprimime import header_decode
 from email.utils import (
@@ -10,18 +18,9 @@ from email.utils import (
     ecre
 )
 
-import datetime
-import binascii
-import logging
-import imaplib
-import codecs
-import base64
-import locale
 import six
-import re
 
 logger = logging.getLogger(__name__)
-
 
 RE_IMAP4_DIR_NAME = re.compile('"([\w/\[\] .-]+)"$', re.UNICODE)
 
@@ -185,7 +184,7 @@ class EmailConnectorInterface(object):
         ids = []
         if self.connection:
             num_emails = self.chdir(directory)
-            ids = range(1, int(num_emails)+1)
+            ids = range(1, int(num_emails) + 1)
             queries = []
             if before:
                 before_date = None
@@ -239,7 +238,7 @@ class EmailConnectorInterface(object):
     def chdir(self, directory):
         num_emails = 0
         if self.connection and directory:
-            ok, (num_emails, ) = self.connection.select(directory)
+            ok, (num_emails,) = self.connection.select(directory)
             if ok == 'OK':
                 num_emails = int(num_emails)
             else:

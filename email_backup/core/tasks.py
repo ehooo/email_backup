@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
-from email_backup.celery import app
-
-from email_backup.core.models import EmailAccount, Email, EmailPath
 import datetime
+
+from email_backup.celery import app
+from email_backup.core.models import EmailAccount, Email, EmailPath
 
 
 @app.task

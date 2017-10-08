@@ -1,26 +1,27 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import hashlib
+import os
+
+import six
+from django.core.files import File
+from django.core.files.storage import default_storage
+from django.db import models
+from django.utils.translation import ugettext_lazy as _
+from six import StringIO
+
+from email_backup.core.connector import Email as TmpEmail
+from email_backup.core.connector import EmailConnectorInterface
 from email_backup.core.validators import (
     host_validator,
     bind_port_validator,
     path_validator
 )
-from email_backup.core.connector import Email as TmpEmail
-from email_backup.core.connector import EmailConnectorInterface
-
-from django.db import models
-from django.core.files import File
-from django.utils.translation import ugettext_lazy as _
-from django.core.files.storage import default_storage
-
-from six import StringIO
-import hashlib
-import six
-import os
 
 if not six.PY2:  # pragma: no cover
     unicode = str
+
 
 class EmailAccount(models.Model):
     user = models.CharField(max_length=128)

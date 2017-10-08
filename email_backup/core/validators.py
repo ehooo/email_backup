@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from django.core.exceptions import ValidationError
-from django.utils.translation import ugettext_lazy as _
-
-from django.core.validators import validate_ipv46_address
-import socket
-import six
 import re
+import socket
 
+import six
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_ipv46_address
+from django.utils.translation import ugettext_lazy as _
 
 RE_PATH = re.compile('([\w/\[\] .-]+)$', re.UNICODE)
 

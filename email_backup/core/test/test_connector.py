@@ -363,9 +363,6 @@ class DirectoriesTest(TestCase):
         self.assertEqual(self.conn.connection.list.call_count, 1)
         self.assertEqual(self.conn.connection.list.call_args, call())
 
-    def test_directories_not_exist(self):
-        pass  # TODO
-
 
 class FetchTest(TestCase):
     def setUp(self):
